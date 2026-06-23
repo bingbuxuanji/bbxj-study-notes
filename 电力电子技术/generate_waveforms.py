@@ -1064,6 +1064,191 @@ def fig_inductance_effect():
 
 
 # ============================================================
+# Figure 13: 自然换相点推导 —— 三相电压交点与30°的数学来源
+# ============================================================
+def fig_natural_commutation_point():
+    """Show how the 30° natural commutation point is derived from
+    three-phase voltage intersections.  This is the visual companion
+    to the step-by-step math in Section 9.6 of the tutorial.
+
+    Key equation:  sin(ωt) = sin(ωt + 120°)  →  ωt = 30° + 180°n
+    """
+    t = np.linspace(0, T, 3000)  # one 50-Hz cycle, fine resolution
+    ωt = ω * t
+    deg = np.degrees(ωt)          # x-axis in electrical degrees
+
+    # Three phase voltages
+    ua = Um * np.sin(ωt)
+    ub = Um * np.sin(ωt - 2*np.pi/3)   # lagging 120°
+    uc = Um * np.sin(ωt + 2*np.pi/3)   # leading 120° (= lagging 240°)
+
+    # ---- compute "which phase is highest" (common-cathode rule) ----
+    highest = np.full(len(t), 0)  # 0=A, 1=B, 2=C
+    for k in range(len(t)):
+        vals = [ua[k], ub[k], uc[k]]
+        highest[k] = np.argmax(vals)  # index of highest phase voltage
+
+    # ---- commutation angles (solved analytically in text) ----
+    # sin(ωt) = sin(ωt+120°) → ωt = 30°, 210°, 390°, ...
+    # sin(ωt) = sin(ωt-120°) → ωt = 150°, 330°, ...
+    sw_ac = [30, 210, 390]   # C→A  handover
+    sw_ab = [150, 330]       # A→B  handover
+    sw_bc = [90, 270]        # B→C  handover (common-anode group)
+
+    # ---- build figure ----
+    fig, axes = plt.subplots(4, 1, figsize=(14, 12), sharex=True)
+
+    # ===== Panel 1: three sine waves with intersection markers =====
+    ax = axes[0]
+    ax.plot(deg, ua, '#e74c3c', linewidth=1.6, label='$u_A = U_m\\sin(\\omega t)$')
+    ax.plot(deg, ub, '#2ecc71', linewidth=1.6, label='$u_B = U_m\\sin(\\omega t - 120°)$')
+    ax.plot(deg, uc, '#3498db', linewidth=1.6, label='$u_C = U_m\\sin(\\omega t + 120°)$')
+    ax.axhline(y=0, color='gray', linewidth=0.6, linestyle='-')
+    ax.set_ylabel('电压 (V)')
+    ax.set_title('三相电压波形  &  自然换相点（交点）', fontsize=14, fontweight='bold')
+    ax.legend(loc='upper right', fontsize=9, ncol=3)
+    ax.grid(True, alpha=0.3)
+    ax.set_ylim(-Um*1.15, Um*1.15)
+
+    # Mark every 30° with faint vertical lines
+    for d in range(0, 361, 30):
+        ax.axvline(x=d, color='lightgray', linewidth=0.4, linestyle='-', alpha=0.5)
+
+    # Highlight the COMMUTATION intersections
+    for sw_list, color, label in [
+        (sw_ac, '#8e44ad', 'C→A'),
+        (sw_ab, '#d35400', 'A→B'),
+    ]:
+        for sw in sw_list:
+            if sw <= 360:
+                ax.axvline(x=sw, color=color, linewidth=1.2, linestyle='--', alpha=0.7)
+
+    # Annotate the key 30° point
+    ax.annotate('30°\n自然换相点\n(C→A)',
+                xy=(30, Um*np.sin(np.deg2rad(30))), xytext=(50, 280),
+                fontsize=10, fontweight='bold', color='#8e44ad',
+                arrowprops=dict(arrowstyle='->', color='#8e44ad', lw=1.5),
+                bbox=dict(boxstyle='round,pad=0.3', facecolor='#f3e5f5', alpha=0.9))
+    ax.annotate('150°\n(A→B)',
+                xy=(150, Um*np.sin(np.deg2rad(150))),
+                xytext=(175, 280), fontsize=10, color='#d35400',
+                arrowprops=dict(arrowstyle='->', color='#d35400', lw=1.2),
+                bbox=dict(boxstyle='round,pad=0.3', facecolor='#fef9e7', alpha=0.9))
+
+    # ===== Panel 2: zoom in around 30° to show the math =====
+    ax = axes[1]
+    zoom_mask = (deg >= 0) & (deg <= 90)
+    ax.plot(deg[zoom_mask], ua[zoom_mask], '#e74c3c', linewidth=2.2, label='$u_A$')
+    ax.plot(deg[zoom_mask], uc[zoom_mask], '#3498db', linewidth=2.2, label='$u_C$')
+    ax.axhline(y=0, color='gray', linewidth=0.6)
+    ax.axvline(x=30, color='#8e44ad', linewidth=2, linestyle='--', alpha=0.8)
+    ax.set_ylabel('电压 (V)')
+    ax.set_title('放大：0° ~ 90° 区域 —— 看 $u_A$ 和 $u_C$ 的交点', fontsize=13, fontweight='bold')
+    ax.legend(loc='upper left', fontsize=10)
+    ax.grid(True, alpha=0.3)
+
+    # Solve and annotate the exact value at 30°
+    val30 = Um * np.sin(np.deg2rad(30))
+    ax.plot(30, val30, 'o', color='#8e44ad', markersize=10, zorder=5)
+    ax.annotate(f'$u_A = u_C = {val30:.0f}$V\n$= U_m \\cdot \\sin 30°$\n$= 311 \\times 0.5$',
+                xy=(30, val30), xytext=(45, val30+80),
+                fontsize=11, color='#8e44ad',
+                arrowprops=dict(arrowstyle='->', color='#8e44ad', lw=1.5),
+                bbox=dict(boxstyle='round,pad=0.4', facecolor='#f3e5f5', alpha=0.95))
+
+    # Shade regions: which phase is higher?
+    ax.fill_between(deg[zoom_mask], ua[zoom_mask], uc[zoom_mask],
+                     where=(ua[zoom_mask] >= uc[zoom_mask]),
+                     alpha=0.12, color='#e74c3c', label='$u_A > u_C$ (A 导通)')
+    ax.fill_between(deg[zoom_mask], ua[zoom_mask], uc[zoom_mask],
+                     where=(ua[zoom_mask] < uc[zoom_mask]),
+                     alpha=0.12, color='#3498db', label='$u_C > u_A$ (C 导通)')
+    ax.annotate('C 相最高\n(C 导通)', xy=(12, Um*0.7),
+                fontsize=11, color='#2471a3',
+                bbox=dict(boxstyle='round', facecolor='#d6eaf8', alpha=0.8))
+    ax.annotate('A 相最高\n(A 导通)', xy=(60, Um*0.7),
+                fontsize=11, color='#b03a2e',
+                bbox=dict(boxstyle='round', facecolor='#fadbd8', alpha=0.8))
+    ax.set_ylim(-20, Um*1.15)
+
+    # ===== Panel 3: "which phase wins" colour ribbon =====
+    ax = axes[2]
+    cmap_colors = ['#e74c3c', '#2ecc71', '#3498db']   # A=red, B=green, C=blue
+    labels_phase = ['A 相', 'B 相', 'C 相']
+
+    for k, (color, label) in enumerate(zip(cmap_colors, labels_phase)):
+        mask = (highest == k)
+        ax.fill_between(deg, 0, 1.0, where=mask,
+                        alpha=0.55, color=color, label=label,
+                        step='mid')
+
+    ax.set_ylabel('')
+    ax.set_title('哪一相电压最高？（共阴极组——"谁高谁导通"）', fontsize=13, fontweight='bold')
+    ax.legend(loc='upper right', fontsize=10, ncol=3)
+    ax.set_ylim(0, 1.2)
+    ax.set_yticks([])
+
+    # Mark all commutation points on the ribbon
+    comm_points = [('30°\nC→A', 30, '#8e44ad'),
+                   ('150°\nA→B', 150, '#d35400'),
+                   ('210°\nC→A', 210, '#8e44ad'),
+                   ('270°\nB→C', 270, '#6c3483'),
+                   ('330°\nA→B', 330, '#d35400')]
+    for label, x, color in comm_points:
+        ax.axvline(x=x, color=color, linewidth=1.5, linestyle='--', alpha=0.8)
+        ax.annotate(label, xy=(x, 0.45), fontsize=8, color=color, ha='center',
+                    bbox=dict(boxstyle='round,pad=0.15', facecolor='white', alpha=0.85))
+
+    # ===== Panel 4: full-cycle summary with the derivation inset =====
+    ax = axes[3]
+    # Plot all three again faintly
+    ax.plot(deg, ua, '#e74c3c', linewidth=0.8, alpha=0.4)
+    ax.plot(deg, ub, '#2ecc71', linewidth=0.8, alpha=0.4)
+    ax.plot(deg, uc, '#3498db', linewidth=0.8, alpha=0.4)
+
+    # Highlight the common-cathode natural commutation points
+    for sw in [30, 150, 270]:
+        ax.axvline(x=sw, color='#8e44ad', linewidth=1.8, linestyle='--', alpha=0.7)
+    for sw in [90, 210, 330]:
+        ax.axvline(x=sw, color='gray', linewidth=1.0, linestyle=':', alpha=0.4)
+
+    ax.axhline(y=0, color='gray', linewidth=0.6)
+    ax.set_ylabel('电压 (V)')
+    ax.set_xlabel('电角度 ωt (度)')
+    ax.set_title('完整周期：共阴极组换相点（紫色虚线，间隔 120°）', fontsize=13, fontweight='bold')
+    ax.grid(True, alpha=0.3)
+    ax.set_ylim(-Um*1.15, Um*1.15)
+
+    # Inset: the key derivation
+    math_text = (
+        r'$\mathbf{30°\ 的数学推导}$' + '\n' +
+        r'$u_A = U_m\sin(\omega t)$' + '\n' +
+        r'$u_C = U_m\sin(\omega t + 120°)$' + '\n' +
+        r'令 $u_A = u_C$：' + '\n' +
+        r'$\sin(\omega t) = \sin(\omega t + 120°)$' + '\n' +
+        r'$\Rightarrow \omega t = 180° - (\omega t + 120°) + 360°n$' + '\n' +
+        r'$\Rightarrow 2\omega t = 60° + 360°n$' + '\n' +
+        r'$\Rightarrow \omega t = 30° + 180°n$' + '\n' +
+        r'取 $n=0$：>>>  $\mathbf{\omega t = 30°}$  <<<'
+    )
+    ax.text(0.65, 0.95, math_text, transform=ax.transAxes,
+            fontsize=9, verticalalignment='top', family='monospace',
+            bbox=dict(boxstyle='round,pad=0.5', facecolor='#fef9e7',
+                       edgecolor='#d35400', alpha=0.95))
+
+    # Mark the 360° axis end
+    for ax_i in axes:
+        ax_i.set_xlim(0, 360)
+        ax_i.set_xticks(np.arange(0, 361, 30))
+
+    fig.suptitle('自然换相点（30°）—— 数学推导与波形图解', fontsize=16, fontweight='bold', y=1.01)
+    plt.tight_layout()
+    fig.savefig(os.path.join(IMG_DIR, '13_natural_commutation_point.png'))
+    plt.close(fig)
+    print("[OK] Fig 13: 自然换相点推导（三相电压交点 + 数学推导）")
+
+
+# ============================================================
 if __name__ == '__main__':
     print("Generating waveform diagrams...")
     print("=" * 50)
@@ -1079,5 +1264,6 @@ if __name__ == '__main__':
     fig_waveform_comparison()
     fig_ud_vs_alpha()
     fig_inductance_effect()
+    fig_natural_commutation_point()
     print("=" * 50)
     print(f"\nAll {12} figures saved to: {IMG_DIR}")
