@@ -1,0 +1,58 @@
+function reportCourse() {
+	var groupDomain = getGroupDomain();
+	var reportPage = groupDomain + "/pc/report/reportIndex";
+	var url = encodeURI(window.location.href);
+	var params = new Array();
+
+	params.push({name:"type",value:"webURL"});
+	params.push({name:"sourceIdstr",value:url});
+	FORM_UTILS.post(reportPage,params,"_blank");
+}
+
+function reportTopic(uuid) {
+	var groupDomain = getGroupDomain();
+	var reportPage = groupDomain + "/pc/report/reportIndex";
+	var params = new Array();
+
+	params.push({name:"type",value:"topic"});
+	params.push({name:"sourceIdstr",value:uuid});
+	FORM_UTILS.post(reportPage,params,"_blank");
+}
+
+function reportTopicReply (uuid, bbsid) {
+	var groupDomain = getGroupDomain();
+	var reportPage = groupDomain + "/pc/report/reportIndex";
+	var params = new Array();
+
+	const sourceContentObject = { bbsid: bbsid };
+
+	params.push({name:"type",value:"reply"});
+	params.push({name:"sourceIdstr",value:uuid});
+	params.push({
+		name:"sourceContent",
+		value: JSON.stringify(sourceContentObject)
+	});
+	FORM_UTILS.post(reportPage,params,"_blank");
+}
+
+function reportTask(classId, taskId, userId, type) {
+	var groupDomain = getGroupDomain();
+	var reportPage = groupDomain + "/pc/report/reportIndex";
+	var params = [];
+	var sourceId = type + "-" + classId + "-" + taskId;
+	params.push({name: "type", value: "homeworkExam"});
+	params.push({name: "sourceIdstr", value: sourceId});
+	var obj = {bePuid: userId};
+	params.push({
+		name: "sourceContent", value: obj
+	});
+	FORM_UTILS.post(reportPage, params, "_blank");
+}
+
+function getGroupDomain(){
+	if (ServerHost && ServerHost.groupDomain) {
+		return ServerHost.groupDomain;
+	}
+	// 兜底,防止有些文件未加载serverHost,影响公网
+	return "https://groupweb.chaoxing.com";
+}
